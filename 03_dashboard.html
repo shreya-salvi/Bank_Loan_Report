@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bank Personal Loan Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface2: #f0eeea;
+    --border: rgba(0,0,0,0.1);
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #888780;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --green: #1D9E75;
+    --green-light: #EAF3DE;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --amber: #BA7517;
+    --amber-light: #FAEEDA;
+    --teal: #0F6E56;
+    --teal-light: #E1F5EE;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border);
+           padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+  header span { font-size: 12px; color: var(--text3); background: var(--blue-light);
+                color: var(--blue); padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 24px 48px; }
+
+  /* NAV TABS */
+  .tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .tab { background: none; border: none; padding: 10px 18px; font-size: 14px; cursor: pointer;
+         color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px;
+         font-family: inherit; transition: all .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 500; }
+
+  /* METRIC GRID */
+  .metric-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 18px 20px; }
+  .metric .lbl { font-size: 12px; color: var(--text3); text-transform: uppercase;
+                 letter-spacing: .06em; margin-bottom: 8px; }
+  .metric .val { font-size: 28px; font-weight: 600; letter-spacing: -.03em; line-height: 1; }
+  .metric .sub { font-size: 12px; color: var(--text3); margin-top: 6px; }
+  .metric.green .val { color: var(--green); }
+  .metric.blue  .val { color: var(--blue); }
+  .metric.amber .val { color: var(--amber); }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: 20px 22px; }
+  .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase;
+                letter-spacing: .07em; color: var(--text3); margin-bottom: 16px; }
+
+  /* GRID LAYOUTS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 16px; }
+
+  /* BAR ROWS */
+  .bar-row { display: flex; align-items: center; gap: 10px; padding: 7px 0;
+             border-bottom: 1px solid var(--border); }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-label { font-size: 13px; color: var(--text); min-width: 130px; }
+  .bar-wrap { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width .5s cubic-bezier(.4,0,.2,1); }
+  .bar-pct { font-size: 12px; font-weight: 600; min-width: 44px; text-align: right; color: var(--text2); }
+
+  /* CONFUSION MATRIX */
+  .cm-wrap { display: grid; grid-template-columns: auto 1fr 1fr; gap: 4px; margin-top: 12px; font-size: 13px; }
+  .cm-cell { padding: 10px 12px; border-radius: var(--radius-sm); text-align: center; font-weight: 600; }
+  .cm-header { background: none; color: var(--text3); font-weight: 500; display: flex; align-items: center; justify-content: center; }
+  .cm-tn,.cm-tp { background: var(--green-light); color: var(--teal); }
+  .cm-fp,.cm-fn { background: var(--red-light); color: var(--red); }
+
+  /* INSIGHT CARDS */
+  .insight { border-left: 3px solid var(--blue); background: var(--blue-light);
+             border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+             padding: 10px 14px; font-size: 13px; line-height: 1.5; color: var(--text); }
+  .insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* MODEL BOXES */
+  .model-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .model-box { background: var(--surface2); border-radius: var(--radius-sm);
+               padding: 14px; text-align: center; }
+  .model-acc { font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
+  .model-name { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* BADGE */
+  .badge { display: inline-block; font-size: 11px; font-weight: 600;
+           padding: 3px 9px; border-radius: 20px; }
+  .badge-green { background: var(--green-light); color: var(--teal); }
+  .badge-blue  { background: var(--blue-light);  color: var(--blue); }
+  .badge-red   { background: var(--red-light);   color: var(--red); }
+
+  /* SEGMENT TOGGLE */
+  .seg-btns { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .seg-btn { background: var(--surface2); border: 1px solid var(--border);
+             border-radius: 20px; padding: 4px 12px; font-size: 12px;
+             cursor: pointer; font-family: inherit; color: var(--text2); transition: all .15s; }
+  .seg-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .seg-btn.active { background: var(--blue-light); border-color: var(--blue); color: var(--blue); font-weight: 500; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* DATA TABLE */
+  .data-section table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-section th { background: var(--surface2); padding: 9px 12px; text-align: left;
+                     font-weight: 600; font-size: 11px; text-transform: uppercase;
+                     letter-spacing: .05em; color: var(--text3);
+                     border-bottom: 1px solid var(--border); }
+  .data-section td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text2); }
+  .data-section tr:hover td { background: var(--surface2); }
+
+  .chart-wrap { position: relative; width: 100%; }
+
+  @media (max-width: 768px) {
+    .metric-grid { grid-template-columns: 1fr 1fr; }
+    .grid-2,.grid-3-1,.grid-3 { grid-template-columns: 1fr; }
+    .insight-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bank Personal Loan Analytics</h1>
+  <span>5,000 customer records · Allbank Financial</span>
+</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('overview',this)">Overview</button>
+    <button class="tab" onclick="showPage('segments',this)">Segment Analysis</button>
+    <button class="tab" onclick="showPage('models',this)">ML Models</button>
+    <button class="tab" onclick="showPage('insights',this)">Key Insights</button>
+    <button class="tab" onclick="showPage('data',this)">Data Summary</button>
+  </div>
+
+  <!-- ═══════════════ PAGE: OVERVIEW ═══════════════ -->
+  <div id="page-overview" class="page active">
+
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="lbl">Total Customers</div>
+        <div class="val">5,000</div>
+        <div class="sub">Full dataset</div>
+      </div>
+      <div class="metric green">
+        <div class="lbl">Loans Approved</div>
+        <div class="val">480</div>
+        <div class="sub">9.6% approval rate</div>
+      </div>
+      <div class="metric amber">
+        <div class="lbl">Avg Income (Approved)</div>
+        <div class="val">$144.7K</div>
+        <div class="sub">vs $66.2K for rejected</div>
+      </div>
+      <div class="metric blue">
+        <div class="lbl">Best Model Accuracy</div>
+        <div class="val">98.7%</div>
+        <div class="sub">Decision Tree</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Income distribution — approved vs rejected</div>
+        <div class="chart-wrap" style="height:240px">
+          <canvas id="incomeChart" role="img"
+            aria-label="Bar chart comparing income distributions of approved vs rejected loan applicants. Approved applicants concentrate in the $100K–$180K range, while rejected applicants concentrate below $90K.">
+            Approved: mean $144.7K. Rejected: mean $66.2K.
+          </canvas>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--text3)">
+          <span style="display:flex;align-items:center;gap:5px">
+            <span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block"></span>
+            Approved (avg $144.7K)
+          </span>
+          <span style="display:flex;align-items:center;gap:5px">
+            <span style="width:10px;height:10px;border-radius:2px;background:#E24B4A;display:inline-block"></span>
+            Rejected (avg $66.2K)
+          </span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Feature importance — Decision Tree</div>
+        <div id="feat-bars"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Approval rate by age group</div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="ageChart" role="img"
+          aria-label="Bar chart showing loan approval rate by age group. All groups are similar, between 8.7% and 10.8%, showing age has minimal impact.">
+          Age approval rates: 20s 10.6%, 30s 9.5%, 40s 9.6%, 50s 8.7%, 60s 10.8%.
+        </canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PAGE: SEGMENTS ═══════════════ -->
+  <div id="page-segments" class="page">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Approval rate by segment</div>
+        <div class="seg-btns">
+          <button class="seg-btn active" onclick="switchSeg('income',this)">Income group</button>
+          <button class="seg-btn" onclick="switchSeg('education',this)">Education</button>
+          <button class="seg-btn" onclick="switchSeg('family',this)">Family size</button>
+          <button class="seg-btn" onclick="switchSeg('cdaccount',this)">CD Account</button>
+          <button class="seg-btn" onclick="switchSeg('securities',this)">Securities</button>
+        </div>
+        <div id="seg-income">
+          <div class="bar-row"><span class="bar-label">Very High (&gt;$130K)</span><div class="bar-wrap"><div class="bar-fill" style="width:44.4%;background:#1D9E75"></div></div><span class="bar-pct">44.4%</span></div>
+          <div class="bar-row"><span class="bar-label">High ($80–130K)</span><div class="bar-wrap"><div class="bar-fill" style="width:13.7%;background:#5DCAA5"></div></div><span class="bar-pct">13.7%</span></div>
+          <div class="bar-row"><span class="bar-label">Medium ($40–80K)</span><div class="bar-wrap"><div class="bar-fill" style="width:0.4%;background:#9FE1CB"></div></div><span class="bar-pct">0.4%</span></div>
+          <div class="bar-row"><span class="bar-label">Low (&lt;$40K)</span><div class="bar-wrap"><div class="bar-fill" style="width:0%;background:#E1F5EE"></div></div><span class="bar-pct">0.0%</span></div>
+        </div>
+        <div id="seg-education" style="display:none">
+          <div class="bar-row"><span class="bar-label">Advanced (Level 3)</span><div class="bar-wrap"><div class="bar-fill" style="width:13.7%;background:#185FA5"></div></div><span class="bar-pct">13.7%</span></div>
+          <div class="bar-row"><span class="bar-label">Graduate (Level 2)</span><div class="bar-wrap"><div class="bar-fill" style="width:13%;background:#378ADD"></div></div><span class="bar-pct">13.0%</span></div>
+          <div class="bar-row"><span class="bar-label">Undergrad (Level 1)</span><div class="bar-wrap"><div class="bar-fill" style="width:4.4%;background:#85B7EB"></div></div><span class="bar-pct">4.4%</span></div>
+        </div>
+        <div id="seg-family" style="display:none">
+          <div class="bar-row"><span class="bar-label">Family of 3</span><div class="bar-wrap"><div class="bar-fill" style="width:13.2%;background:#D85A30"></div></div><span class="bar-pct">13.2%</span></div>
+          <div class="bar-row"><span class="bar-label">Family of 4</span><div class="bar-wrap"><div class="bar-fill" style="width:11%;background:#F0997B"></div></div><span class="bar-pct">11.0%</span></div>
+          <div class="bar-row"><span class="bar-label">Family of 2</span><div class="bar-wrap"><div class="bar-fill" style="width:8.2%;background:#F5C4B3"></div></div><span class="bar-pct">8.2%</span></div>
+          <div class="bar-row"><span class="bar-label">Single</span><div class="bar-wrap"><div class="bar-fill" style="width:7.3%;background:#FAECE7"></div></div><span class="bar-pct">7.3%</span></div>
+        </div>
+        <div id="seg-cdaccount" style="display:none">
+          <div class="bar-row"><span class="bar-label">Has CD Account</span><div class="bar-wrap"><div class="bar-fill" style="width:46.4%;background:#534AB7"></div></div><span class="bar-pct">46.4%</span></div>
+          <div class="bar-row"><span class="bar-label">No CD Account</span><div class="bar-wrap"><div class="bar-fill" style="width:7.2%;background:#EEEDFE"></div></div><span class="bar-pct">7.2%</span></div>
+        </div>
+        <div id="seg-securities" style="display:none">
+          <div class="bar-row"><span class="bar-label">Has Securities</span><div class="bar-wrap"><div class="bar-fill" style="width:11.5%;background:#3B6D11"></div></div><span class="bar-pct">11.5%</span></div>
+          <div class="bar-row"><span class="bar-label">No Securities</span><div class="bar-wrap"><div class="bar-fill" style="width:9.4%;background:#C0DD97"></div></div><span class="bar-pct">9.4%</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Segment comparison chart</div>
+        <div class="chart-wrap" style="height:300px">
+          <canvas id="segChart" role="img" aria-label="Horizontal bar chart of loan approval rates across segments. CD Account holders lead at 46.4%, very high income earners at 44.4%.">
+            CD Account: 46.4%, Very High Income: 44.4%, Advanced Education: 13.7%, High Income: 13.7%, Graduate Education: 13.0%.
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Credit card spend — approved vs rejected</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="ccavgChart" role="img" aria-label="Bar chart comparing average credit card spend between approved and rejected applicants. Approved applicants spend $3,910 per month versus $1,730 for rejected.">
+          Approved CCAvg: $3,910/month. Rejected CCAvg: $1,730/month.
+        </canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PAGE: ML MODELS ═══════════════ -->
+  <div id="page-models" class="page">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Model accuracy comparison</div>
+        <div class="model-pair">
+          <div class="model-box">
+            <div class="model-acc" style="color:var(--blue)">98.7%</div>
+            <div class="model-name">Decision Tree</div>
+          </div>
+          <div class="model-box">
+            <div class="model-acc" style="color:var(--text3)">95.4%</div>
+            <div class="model-name">Logistic Regression</div>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="modelCompChart" role="img" aria-label="Bar chart comparing accuracy and ROC-AUC scores for Decision Tree and Logistic Regression models.">
+            Decision Tree: 98.7% accuracy, ~0.99 AUC. Logistic Regression: 95.4% accuracy, ~0.97 AUC.
+          </canvas>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <span class="badge badge-green">DT Precision: 98.9%</span>
+          <span class="badge badge-blue">DT Recall: 88.6%</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Decision Tree — confusion matrix</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Test set: 1,000 records</p>
+        <div class="cm-wrap">
+          <div></div>
+          <div class="cm-header">Pred No</div>
+          <div class="cm-header">Pred Yes</div>
+          <div class="cm-header" style="justify-content:flex-start;font-size:12px">Actual No</div>
+          <div class="cm-cell cm-tn">894 ✓</div>
+          <div class="cm-cell cm-fp">1</div>
+          <div class="cm-header" style="justify-content:flex-start;font-size:12px">Actual Yes</div>
+          <div class="cm-cell cm-fn">12</div>
+          <div class="cm-cell cm-tp">93 ✓</div>
+        </div>
+        <p style="font-size:12px;color:var(--text3);margin-top:14px">
+          True Negatives + True Positives = 987 of 1,000 correct predictions
+        </p>
+
+        <div style="margin-top:18px">
+          <div class="card-title">Logistic Regression — confusion matrix</div>
+          <div class="cm-wrap">
+            <div></div>
+            <div class="cm-header">Pred No</div>
+            <div class="cm-header">Pred Yes</div>
+            <div class="cm-header" style="justify-content:flex-start;font-size:12px">Actual No</div>
+            <div class="cm-cell cm-tn">883 ✓</div>
+            <div class="cm-cell cm-fp">12</div>
+            <div class="cm-header" style="justify-content:flex-start;font-size:12px">Actual Yes</div>
+            <div class="cm-cell cm-fn">34</div>
+            <div class="cm-cell cm-tp">71 ✓</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Feature importance — Decision Tree (all features)</div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="featChart" role="img" aria-label="Horizontal bar chart of feature importances from the Decision Tree model. Education leads at 41.1%, followed by Income at 31.9%, Family at 18.6%.">
+          Education: 41.1%, Income: 31.9%, Family: 18.6%, CCAvg: 4.3%, CC/Income ratio: 2.3%, CD Account: 1.0%, Age: 0.7%.
+        </canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PAGE: INSIGHTS ═══════════════ -->
+  <div id="page-insights" class="page">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Key findings</div>
+      <div class="insight-grid">
+        <div class="insight">
+          <strong>Income gap is massive</strong> — approved applicants earn $144.7K on average versus $66.2K for rejected, a 2.2× difference. Income below $40K results in 0% approval.
+        </div>
+        <div class="insight">
+          <strong>CD Account is the strongest binary signal</strong> — holders are approved at 46.4% vs 7.2% for non-holders. This likely reflects broader wealth rather than a direct causal factor.
+        </div>
+        <div class="insight">
+          <strong>Education + Income dominate predictions</strong> — together they account for 73% of the Decision Tree's feature importance, making them the two critical variables.
+        </div>
+        <div class="insight">
+          <strong>Credit card spend is a strong proxy</strong> — approved applicants spend $3,910/mo on average vs $1,730/mo. This may reflect lifestyle and repayment capacity.
+        </div>
+        <div class="insight">
+          <strong>Age has no predictive power</strong> — approval rates are flat across all age groups (8.7%–10.8%), suggesting age-based discrimination would be both unfair and inaccurate.
+        </div>
+        <div class="insight">
+          <strong>Family size has a moderate effect</strong> — families of 3–4 are approved at ~12% vs 7–8% for singles, contributing 18.6% of the Decision Tree's importance.
+        </div>
+        <div class="insight">
+          <strong>Decision Tree significantly outperforms Logistic Regression</strong> — 98.7% vs 95.4% accuracy, with far fewer false negatives (12 vs 34). Use DT for production.
+        </div>
+        <div class="insight">
+          <strong>High-risk segment</strong> — low income + undergrad education + no CD account = near-zero approval probability. This group represents the majority of rejected applicants.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Risk segmentation overview</div>
+      <div class="chart-wrap" style="height:250px">
+        <canvas id="riskChart" role="img" aria-label="Doughnut chart showing risk segmentation of the 5,000 customers. 9.6% approved, 48% high risk rejection, 42.4% medium risk rejection.">
+          480 approved (9.6%), ~2,400 high risk (48%), ~2,120 medium/low risk (42.4%).
+        </canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PAGE: DATA SUMMARY ═══════════════ -->
+  <div id="page-data" class="page data-section">
+    <div class="card">
+      <div class="card-title">Dataset summary statistics</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th><th>Min</th><th>Mean</th><th>Median</th><th>Max</th><th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Age</td><td>23</td><td>45.3</td><td>45</td><td>67</td><td>Years</td></tr>
+          <tr><td>Experience</td><td>0</td><td>20.1</td><td>20</td><td>43</td><td>Years (clamped at 0)</td></tr>
+          <tr><td>Income</td><td>$8K</td><td>$73.8K</td><td>$64K</td><td>$224K</td><td>Annual, USD (000s)</td></tr>
+          <tr><td>Family</td><td>1</td><td>2.4</td><td>2</td><td>4</td><td>Size</td></tr>
+          <tr><td>CCAvg</td><td>$0</td><td>$1.94K</td><td>$1.5K</td><td>$10K</td><td>Monthly credit card spend</td></tr>
+          <tr><td>Education</td><td>1</td><td>—</td><td>—</td><td>3</td><td>1=Undergrad, 2=Grad, 3=Advanced</td></tr>
+          <tr><td>Mortgage</td><td>$0</td><td>$56.5K</td><td>$0</td><td>$635K</td><td>72% have no mortgage</td></tr>
+          <tr><td>Personal Loan</td><td>0</td><td>—</td><td>—</td><td>1</td><td>Target: 9.6% approved</td></tr>
+          <tr><td>Securities Account</td><td>0</td><td>—</td><td>—</td><td>1</td><td>10.5% have one</td></tr>
+          <tr><td>CD Account</td><td>0</td><td>—</td><td>—</td><td>1</td><td>6.2% have one</td></tr>
+          <tr><td>Online</td><td>0</td><td>—</td><td>—</td><td>1</td><td>60.1% use online banking</td></tr>
+          <tr><td>CreditCard</td><td>0</td><td>—</td><td>—</td><td>1</td><td>29.4% hold bank credit card</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="height:16px"></div>
+    <div class="card">
+      <div class="card-title">Data quality report</div>
+      <table>
+        <thead>
+          <tr><th>Check</th><th>Result</th><th>Action taken</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Missing values</td><td><span class="badge badge-green">0 nulls</span></td><td>None required</td></tr>
+          <tr><td>Duplicate rows</td><td><span class="badge badge-green">0 duplicates</span></td><td>None required</td></tr>
+          <tr><td>CCAvg encoding</td><td><span class="badge badge-red">String "1/60"</span></td><td>Replaced "/" with ".", cast to float</td></tr>
+          <tr><td>Negative Experience</td><td><span class="badge badge-red">52 records</span></td><td>Clamped to 0 using clip(lower=0)</td></tr>
+          <tr><td>ID / ZIP Code</td><td><span class="badge badge-blue">Non-predictive</span></td><td>Dropped from feature set</td></tr>
+          <tr><td>Class imbalance</td><td><span class="badge badge-red">9.6% positive</span></td><td>class_weight='balanced' in models</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function switchSeg(name, btn) {
+  ['income','education','family','cdaccount','securities'].forEach(s => {
+    document.getElementById('seg-' + s).style.display = (s === name) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Feature importance bars (overview page)
+const features = [
+  { name: 'Education',       pct: 41.1, color: '#185FA5' },
+  { name: 'Income',          pct: 31.9, color: '#378ADD' },
+  { name: 'Family size',     pct: 18.6, color: '#85B7EB' },
+  { name: 'CCAvg',           pct: 4.3,  color: '#B5D4F4' },
+  { name: 'CC/Income ratio', pct: 2.3,  color: '#E6F1FB' },
+  { name: 'CD Account',      pct: 1.0,  color: '#E6F1FB' },
+];
+const featBarsEl = document.getElementById('feat-bars');
+features.forEach(f => {
+  featBarsEl.innerHTML += `
+    <div class="bar-row">
+      <span class="bar-label">${f.name}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${f.pct}%;background:${f.color}"></div></div>
+      <span class="bar-pct">${f.pct}%</span>
+    </div>`;
+});
+
+// ── Income distribution chart
+new Chart(document.getElementById('incomeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['<40K','40-60K','60-80K','80-100K','100-120K','120-140K','140-160K','160-180K','180-200K','>200K'],
+    datasets: [
+      { label: 'Approved', data: [0, 0, 2, 18, 74, 116, 122, 96, 42, 10], backgroundColor: 'rgba(29,158,117,0.80)', borderRadius: 3 },
+      { label: 'Rejected',  data: [480,640,720,640,560,440,340,250,150,60], backgroundColor: 'rgba(226,75,74,0.30)', borderRadius: 3 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { font: { size: 11 }, maxRotation: 40 }, grid: { display: false } },
+      y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+    }
+  }
+});
+
+// ── Age chart
+new Chart(document.getElementById('ageChart'), {
+  type: 'bar',
+  data: {
+    labels: ["20s", "30s", "40s", "50s", "60s"],
+    datasets: [{ label: 'Approval Rate %', data: [10.6, 9.5, 9.6, 8.7, 10.8],
+      backgroundColor: '#378ADD', borderRadius: 4 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { min: 0, max: 15, ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+    }
+  }
+});
+
+// ── Segment comparison (horizontal bar)
+new Chart(document.getElementById('segChart'), {
+  type: 'bar',
+  data: {
+    labels: ['CD Account', 'Very High Income', 'Adv Education', 'High Income', 'Grad Education', 'Family of 3', 'Family of 4', 'Securities'],
+    datasets: [{ label: 'Approval Rate %', data: [46.4, 44.4, 13.7, 13.7, 13.0, 13.2, 11.0, 11.5],
+      backgroundColor: ['#534AB7','#1D9E75','#185FA5','#5DCAA5','#378ADD','#D85A30','#F0997B','#3B6D11'],
+      borderRadius: 3 }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+      y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+    }
+  }
+});
+
+// ── CCAvg chart
+new Chart(document.getElementById('ccavgChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Approved', 'Rejected'],
+    datasets: [{ label: 'Avg Monthly CC Spend ($)',
+      data: [3910, 1730],
+      backgroundColor: ['#1D9E75','#E24B4A'], borderRadius: 5 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { ticks: { callback: v => '$' + v.toLocaleString(), font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+    }
+  }
+});
+
+// ── Model comparison chart
+new Chart(document.getElementById('modelCompChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Accuracy', 'ROC-AUC (×100)'],
+    datasets: [
+      { label: 'Decision Tree', data: [98.7, 99.1], backgroundColor: '#185FA5', borderRadius: 3 },
+      { label: 'Logistic Reg.', data: [95.4, 97.6], backgroundColor: '#B4B2A9', borderRadius: 3 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { min: 90, max: 100, ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+    }
+  }
+});
+
+// ── Full feature importance chart
+new Chart(document.getElementById('featChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Education', 'Income', 'Family', 'CCAvg', 'CC/Income', 'CD Account', 'Age', 'Experience', 'Mortgage', 'Securities', 'Online', 'CreditCard'],
+    datasets: [{ label: 'Importance %', data: [41.1, 31.9, 18.6, 4.3, 2.3, 1.0, 0.7, 0, 0, 0, 0, 0],
+      backgroundColor: '#378ADD', borderRadius: 3 }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+      y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+    }
+  }
+});
+
+// ── Risk doughnut
+new Chart(document.getElementById('riskChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Approved', 'High-risk rejection', 'Medium/low-risk rejection'],
+    datasets: [{ data: [480, 2400, 2120],
+      backgroundColor: ['#1D9E75', '#E24B4A', '#B4B2A9'], hoverOffset: 8 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'right', labels: { font: { size: 12 }, boxWidth: 14 } }
+    }
+  }
+});
+</script>
+</body>
+</html>
